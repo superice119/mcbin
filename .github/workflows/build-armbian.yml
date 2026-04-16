@@ -44,6 +44,13 @@ jobs:
           sudo apt-get clean
           df -h
 
+      # Register QEMU binfmt handlers on the host kernel so that the Armbian
+      # Docker build container can execute arm64/arm binaries during rootfs build.
+      - name: Set up QEMU (binfmt for arm64/arm)
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm,arm64
+
       - name: Checkout Armbian build framework
         uses: actions/checkout@v4
         with:

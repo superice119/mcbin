@@ -1,0 +1,105 @@
+name: Build Armbian for MACCHIATObin Double Shot
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Armbian kernel branch'
+        required: true
+        default: 'current'
+        type: choice
+        options:
+          - current
+          - edge
+      release:
+        description: 'OS release'
+        required: true
+        default: 'trixie'
+        type: choice
+        options:
+          - trixie
+          - bookworm
+          - noble
+          - jammy
+
+jobs:
+  build:
+    name: Build Armbian (${{ github.event.inputs.release }}, ${{ github.event.inputs.branch }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Free disk space (~30GB)
+        run: |
+          sudo rm -rf \
+            /usr/local/lib/android \
+            /usr/share/dotnet \
+            /opt/ghc \
+            /usr/local/share/boost \
+            /opt/hostedtoolcache/CodeQL \
+            /usr/local/lib/node_modules \
+            /usr/share/swift \
+            "$AGENT_TOOLSDIRECTORY" || true
+          sudo apt-get clean
+          df -h
+
+      - name: Checkout Armbian build framework
+        uses: actions/checkout@v4
+        with:
+          repository: armbian/build
+          path: armbian-build
+          fetch-depth: 1
+
+      - name: Build Armbian image (with incremental retry)
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 300
+          max_attempts: 3
+          retry_on: error
+          # Do NOT clean cache between retries — Armbian detects already-compiled
+          # artifacts (kernel, U-Boot, rootfs) and skips them on subsequent runs.
+          command: |
+            cd armbian-build
+            ./compile.sh \
+              BOARD=macchiatobin-doubleshot \
+              BRANCH=${{ github.event.inputs.branch }} \
+              RELEASE=${{ github.event.inputs.release }} \
+              BUILD_MINIMAL=no \
+              BUILD_DESKTOP=no \
+              KERNEL_CONFIGURE=no \
+              COMPRESS_OUTPUTIMAGE=sha,xz \
+              EXPERT=yes
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: armbian-${{ github.run_number }}
+          name: "Armbian mcbin — ${{ github.event.inputs.release }} / ${{ github.event.inputs.branch }} (#${{ github.run_number }})"
+          body: |
+            ## Armbian for MACCHIATObin Double Shot
+
+            | Parameter | Value |
+            |-----------|-------|
+            | Board | `macchiatobin-doubleshot` |
+            | OS | ${{ github.event.inputs.release }} |
+            | Kernel branch | ${{ github.event.inputs.branch }} |
+            | Build type | Server (CLI, no desktop) |
+            | Built at | ${{ github.run_id }} |
+
+            ### Flash instructions
+            ```bash
+            xz -d Armbian_*.img.xz
+            sudo dd if=Armbian_*.img of=/dev/sdX bs=4M status=progress
+            ```
+          files: armbian-build/output/images/*.img.xz
+          fail_on_unmatched_files: true
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-run-${{ github.run_number }}
+          path: |
+            armbian-build/output/debug/
+          retention-days: 7

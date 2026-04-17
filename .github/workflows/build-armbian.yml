@@ -58,6 +58,17 @@ jobs:
           path: armbian-build
           fetch-depth: 1
 
+      - name: Checkout this repo (for userpatches)
+        uses: actions/checkout@v4
+        with:
+          path: mcbin-config
+
+      # Armbian picks up kernel config fragments from userpatches/config/kernel/
+      # linux-mvebu64-current.config enables CONFIG_PHY_MVEBU_CP110_COMPHY=y
+      # which is required for CP110 SERDES PHY (Ethernet, SATA, PCIe, USB).
+      - name: Copy userpatches into Armbian build tree
+        run: cp -r mcbin-config/userpatches armbian-build/
+
       - name: Build Armbian image (with incremental retry)
         uses: nick-fields/retry@v3
         with:

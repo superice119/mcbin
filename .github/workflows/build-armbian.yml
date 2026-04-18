@@ -63,9 +63,9 @@ jobs:
         with:
           path: mcbin-config
 
-      # Armbian picks up kernel config fragments from userpatches/config/kernel/
-      # linux-mvebu64-current.config enables CONFIG_PHY_MVEBU_CP110_COMPHY=y
-      # which is required for CP110 SERDES PHY (Ethernet, SATA, PCIe, USB).
+      # Armbian extensions go in userpatches/extensions/ and are loaded via EXTENSIONS=.
+      # mcbin-cp110-comphy.sh enables CONFIG_PHY_MVEBU_CP110_COMPHY=m via the
+      # custom_kernel_config hook — the proper way to add kernel config options.
       - name: Copy userpatches into Armbian build tree
         run: cp -r mcbin-config/userpatches armbian-build/
 
@@ -86,6 +86,7 @@ jobs:
               BUILD_MINIMAL=no \
               BUILD_DESKTOP=no \
               KERNEL_CONFIGURE=no \
+              EXTENSIONS=mcbin-cp110-comphy \
               COMPRESS_OUTPUTIMAGE=sha,xz \
               EXPERT=yes
 

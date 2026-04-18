@@ -1,17 +1,22 @@
-# Enable CP110 SERDES PHY driver for MACCHIATObin Double Shot
+# Enable CP110 SERDES PHY and fix CMA/DMA for MACCHIATObin Double Shot
 #
-# Without CONFIG_PHY_MVEBU_CP110_COMPHY, all CP110-attached devices
-# (Ethernet eth0/eth1, SATA, PCIe, USB) fail with "deferred probe pending"
-# and never initialize on Armbian 6.12.x kernel.
+# Without CONFIG_PHY_MVEBU_CP110_COMPHY=y, all CP110-attached devices
+# (Ethernet eth0/eth1, SATA, PCIe, USB) fail with "deferred probe pending".
+#
+# Must be built-in (=y not =m): the comphy PHY nodes must be available
+# before mvpp2/SATA/PCIe probe, otherwise they defer indefinitely.
+#
+# CMA: mvpp2 allocates ~2MB DMA buffers per interface (8 buffers/cpu × 4 cpu).
+# Default 16MB CMA is exhausted before both interfaces probe. Set 64MB.
 
 function custom_kernel_config__mcbin_cp110_comphy() {
-	# Add to kernel_config_modifying_hashes so Armbian's cache invalidation
-	# detects our change and forces a rebuild when this option changes.
-	kernel_config_modifying_hashes+=("PHY_MVEBU_CP110_COMPHY=m")
+	kernel_config_modifying_hashes+=("PHY_MVEBU_CP110_COMPHY=y" "CMA_SIZE_MBYTES=64")
 
-	# Only modify .config if it exists (the hook runs twice; once without).
 	if [[ -f .config ]]; then
-		display_alert "mcbin" "Enabling CONFIG_PHY_MVEBU_CP110_COMPHY=m for CP110 SERDES PHY" "info"
-		opts_m+=("PHY_MVEBU_CP110_COMPHY")
+		display_alert "mcbin" "Enabling CONFIG_PHY_MVEBU_CP110_COMPHY=y (built-in) for CP110 SERDES PHY" "info"
+		# Built-in so comphy PHY nodes exist before ethernet/SATA/PCIe probe
+		./scripts/config --enable CONFIG_PHY_MVEBU_CP110_COMPHY
+		# Increase default CMA pool to 64 MB (mvpp2 uses ~2MB per interface)
+		./scripts/config --set-val CONFIG_CMA_SIZE_MBYTES 64
 	fi
 }

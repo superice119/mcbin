@@ -63,8 +63,8 @@ jobs:
         with:
           path: mcbin-config
 
-      # Armbian extensions go in userpatches/extensions/ and are loaded via EXTENSIONS=.
-      # mcbin-cp110-comphy.sh enables CONFIG_PHY_MVEBU_CP110_COMPHY=m via the
+      # Armbian extensions go in userpatches/extensions/ and are loaded via ENABLE_EXTENSIONS=.
+      # mcbin-cp110-comphy.sh enables CONFIG_PHY_MVEBU_CP110_COMPHY=y via the
       # custom_kernel_config hook — the proper way to add kernel config options.
       - name: Copy userpatches into Armbian build tree
         run: cp -r mcbin-config/userpatches armbian-build/
@@ -86,7 +86,7 @@ jobs:
               BUILD_MINIMAL=no \
               BUILD_DESKTOP=no \
               KERNEL_CONFIGURE=no \
-              EXTENSIONS=mcbin-cp110-comphy \
+              ENABLE_EXTENSIONS=mcbin-cp110-comphy \
               COMPRESS_OUTPUTIMAGE=sha,xz \
               EXPERT=yes
 
